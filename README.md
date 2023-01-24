@@ -1,10 +1,10 @@
-# Conveyor Limit Orders v0
-The core smart contracts of the Conveyor Limit Orders protocol.
+# Conveyor Protocol v0
+The core smart contracts of the Conveyor Limit Orders, and DEX Aggregator protocol.
 
 ## Build Instructions
 First Clone the Repository
 ```sh
-git clone https://github.com/ConveyorLabs/LimitOrders-v0 && cd LimitOrders-v0
+git clone https://github.com/ConveyorLabs/protocol-v0 && cd protocol-v0
 ```
 ### Run The Test Suite
 ```sh
