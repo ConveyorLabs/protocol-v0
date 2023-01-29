@@ -1,6 +1,6 @@
 # Security Policy
 
-While we don't have an official bug-bounty system in place, we take security extremely seriously, and rewards will be given on a case-by-case situation.
+While we don't have an official bug-bounty system in place, we take security extremely seriously, and rewards will be given on a case-by-case basis.
 
 ## Reporting a Vulnerability
 
