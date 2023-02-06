@@ -6,7 +6,7 @@ import "./lib/ConveyorTickMath.sol";
 import "./interfaces/ILimitOrderQuoter.sol";
 
 /// @title LimitOrderQuoter
-/// @author 0xOsiris, 0xKitsune
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice This contract handles all CFMM quoting logic.
 contract LimitOrderQuoter is ILimitOrderQuoter, ConveyorTickMath {
     address immutable WETH;
