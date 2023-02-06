@@ -12,7 +12,7 @@ import "./interfaces/ILimitOrderBook.sol";
 import "./interfaces/IConveyorExecutor.sol";
 
 /// @title ConveyorExecutor
-/// @author 0xOsiris, 0xKitsune
+/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 /// @notice This contract handles all order execution.
 contract ConveyorExecutor is IConveyorExecutor, LimitOrderSwapRouter {
     using SafeERC20 for IERC20;
