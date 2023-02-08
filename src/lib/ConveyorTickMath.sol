@@ -211,7 +211,7 @@ contract ConveyorTickMath {
         }
         {
             ///@notice Return the simulated amount out as a negative value representing the amount recieved in the swap.
-            amountOut = uint128(int128(-currentState.amountCalculated));
+            amountOut = uint128(SafeCast.toInt128(-currentState.amountCalculated));
             sqrtPriceX96 = currentState.sqrtPriceX96;
         }
     }
