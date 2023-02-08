@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.16;
 
-/// @title ConveyorErrors
-/// @author 0xOsiris, 0xKitsune, Conveyor Labs
 error InsufficientWalletBalance(
     address account,
     uint256 balance,
