@@ -16,21 +16,32 @@ contract ConveyorSwapAggregator {
     address public immutable CONVEYOR_SWAP_EXECUTOR;
     address public immutable WETH;
 
-    constructor(address _weth) {
+    constructor(address _weth, address _conveyorSwapExecutor) {
         WETH = _weth;
-        CONVEYOR_SWAP_EXECUTOR = address(new ConveyorSwapExecutor());
+        CONVEYOR_SWAP_EXECUTOR = _conveyorSwapExecutor;
     }
 
+    /// @notice Multicall struct for token Swaps.
+    /// @param tokenInDestination Address to send tokenIn to.
+    /// @param calls Array of calls to be executed.
     struct SwapAggregatorMulticall {
         address tokenInDestination;
         Call[] calls;
     }
-
+    /// @notice Call struct for token Swaps.
+    /// @param target Address to call.
+    /// @param callData Data to call.
     struct Call {
         address target;
         bytes callData;
     }
 
+    /// @notice Swap tokens for tokens.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
     function swap(
         address tokenIn,
         uint256 amountIn,
@@ -38,19 +49,23 @@ contract ConveyorSwapAggregator {
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
+        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(tokenIn).transferFrom(
             msg.sender,
             swapAggregatorMulticall.tokenInDestination,
             amountIn
         );
 
+        ///@notice Get tokenOut balance of msg.sender.
         uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
+        ///@notice Calculate tokenOut amount required.
         uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
 
+        ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
         );
-
+        ///@notice Check if tokenOut balance of msg.sender is sufficient.
         if (IERC20(tokenOut).balanceOf(msg.sender) < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(
                 tokenOutAmountRequired - IERC20(tokenOut).balanceOf(msg.sender),
@@ -59,50 +74,39 @@ contract ConveyorSwapAggregator {
         }
     }
 
+    /// @notice Swap ETH for tokens.
+    /// @param tokenOut Address of token to receive.
+    /// @param amountOutMin Minimum amount of tokenOut to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactEthForToken(
         address tokenOut,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external payable {
-        address _weth = WETH;
-        assembly {
-            mstore(0x0, shl(224, 0xd0e30db0))
-            if iszero(
-                call(
-                    gas(),
-                    _weth,
-                    callvalue(),
-                    0,
-                    0,
-                    0,
-                    0
-                )
-            ) {
-                revert("Native token deposit failed", 0)
-            }
-            
-        }
-      
+        ///@notice Deposit the msg.value into WETH.
+        _depositEth(msg.value, WETH);
+
+        ///@notice Transfer WETH from WETH to tokenInDestination address.
         IERC20(WETH).transfer(
             swapAggregatorMulticall.tokenInDestination,
             msg.value
         );
 
-        uint256 tokenOutBalance = IERC20(tokenOut).balanceOf(msg.sender);
-        uint256 tokenOutAmountRequired = tokenOutBalance + amountOutMin;
+        ///@notice Calculate tokenOut amount required.
+        uint256 tokenOutAmountRequired = IERC20(tokenOut).balanceOf(
+            msg.sender
+        ) + amountOutMin;
 
+        ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
         );
 
-        bool sufficient;
+        ///@notice Get tokenOut balance of msg.sender after multicall execution.
         uint256 balanceOut = IERC20(tokenOut).balanceOf(msg.sender);
 
-        assembly {
-            sufficient := iszero(lt(tokenOutAmountRequired, balanceOut))
-        }
-        
-        if (!sufficient) {
+        ///@notice Revert if tokenOut balance of msg.sender is insufficient.
+        if (balanceOut < tokenOutAmountRequired) {
             revert InsufficientOutputAmount(
                 tokenOutAmountRequired - balanceOut,
                 amountOutMin
@@ -110,89 +114,108 @@ contract ConveyorSwapAggregator {
         }
     }
 
+    /// @notice Swap tokens for ETH.
+    /// @param tokenIn Address of token to swap.
+    /// @param amountIn Amount of tokenIn to swap.
+    /// @param amountOutMin Minimum amount of ETH to receive.
+    /// @param swapAggregatorMulticall Multicall to be executed.
     function swapExactTokenForEth(
         address tokenIn,
         uint256 amountIn,
         uint256 amountOutMin,
         SwapAggregatorMulticall calldata swapAggregatorMulticall
     ) external {
+        ///@notice Transfer tokenIn from msg.sender to tokenInDestination address.
         IERC20(tokenIn).transferFrom(
             msg.sender,
             swapAggregatorMulticall.tokenInDestination,
             amountIn
         );
+        ///@notice Calculate amountOutRequired.
+        uint256 amountOutRequired = msg.sender.balance + amountOutMin;
 
-        uint256 amountOutRequired;
-        assembly {
-            amountOutRequired := add(selfbalance(), amountOutMin)
-        }
-
+        ///@notice Execute Multicall.
         IConveyorSwapExecutor(CONVEYOR_SWAP_EXECUTOR).executeMulticall(
             swapAggregatorMulticall.calls
         );
 
-        bool sufficient;
-        bool transferSuccess;
+        ///@notice Get WETH balance of this contract.
         uint256 balanceWeth = IERC20(WETH).balanceOf(address(this));
 
-        address _weth = WETH;
-        assembly {
-            mstore(0x0, shl(224, 0x2e1a7d4d))
-            mstore(4, balanceWeth)
-            if iszero(
-                call(
-                    gas(),
-                    _weth,
-                    0, /* wei */
-                    0, /* in pos */
-                    68, /* in len */
-                    0, /* out pos */
-                    0 /* out size */
-                )
-            ) {
-                revert("Native Token Withdraw failed", balanceWeth)
-            }
+        ///@notice Withdraw WETH from this contract.
+        _withdrawEth(balanceWeth, WETH);
 
-            sufficient := iszero(lt(amountOutRequired, selfbalance()))
+        ///@notice Transfer ETH to msg.sender.
+        _safeTransferETH(msg.sender, address(this).balance);
 
-            if sufficient {
-                mstore(
-                    0x00,
-                    0xa9059cbb00000000000000000000000000000000000000000000000000000000
-                )
-
-                mstore(4, caller())
-                mstore(36, selfbalance())
-
-                pop(
-                    call(
-                        gas(),
-                        0, /* to */
-                        0, /* wei */
-                        0, /* in pos */
-                        68, /* in len */
-                        0, /* out pos */
-                        0 /* out size */
-                    )
-                )
-                transferSuccess := iszero(returndatasize())
-            }
-        }
-
-        if (!sufficient) {
+        ///@notice Revert if Eth balance of the caller is insufficient.
+        if (msg.sender.balance < amountOutRequired) {
             revert InsufficientOutputAmount(
-                amountOutRequired - address(this).balance,
+                amountOutRequired - msg.sender.balance,
                 amountOutMin
             );
         }
+    }
 
-        require(transferSuccess, "Native transfer failed");
+    ///@notice Helper function to transfer ETH.
+    function _safeTransferETH(address to, uint256 amount) internal {
+        bool success;
+        assembly {
+            // Transfer the ETH and store if it succeeded or not.
+            success := call(gas(), to, amount, 0, 0, 0, 0)
+        }
+
+        if (!success) {
+            revert ETHTransferFailed();
+        }
+    }
+
+    /// @notice Helper function to Withdraw ETH from WETH.
+    function _withdrawEth(uint256 amount, address weth) internal {
+        assembly {
+            mstore(0x0, shl(224, 0x2e1a7d4d)) /* keccak256("withdraw(uint256)") */
+            mstore(4, amount)
+            if iszero(
+                call(
+                    gas(), /* gas */
+                    weth, /* to */
+                    0, /* value */
+                    0, /* in */
+                    68, /* in size */
+                    0, /* out */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native Token Withdraw failed", amount)
+            }
+        }
+    }
+
+    /// @notice Helper function to Deposit ETH into WETH.
+    function _depositEth(uint256 amount, address weth) internal {
+        assembly {
+            mstore(0x0, shl(224, 0xd0e30db0)) /* keccak256("deposit()") */
+            if iszero(
+                call(
+                    gas(), /* gas */
+                    weth, /* to */
+                    amount, /* value */
+                    0, /* in */
+                    0, /* in size */
+                    0, /* out */
+                    0 /* out size */
+                )
+            ) {
+                revert("Native token deposit failed", 0)
+            }
+        }
     }
 
     receive() external payable {}
 }
 
 contract ConveyorSwapExecutor {
+    ///@notice Executes a multicall.
     function executeMulticall(ConveyorSwapAggregator.Call[] calldata calls)
         public
     {
@@ -237,4 +260,5 @@ contract ConveyorSwapExecutor {
             IERC20(tokenIn).transfer(msg.sender, amountIn);
         }
     }
+}
 }
