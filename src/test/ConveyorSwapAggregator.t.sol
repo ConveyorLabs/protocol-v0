@@ -42,7 +42,8 @@ contract ConveyorSwapAggregatorTest is DSTest {
         conveyorSwapAggregator = IConveyorSwapAggregator(
             address(
                 new ConveyorSwapAggregator(
-                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+                    0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+                    0xD4c5F21A568e5e856A658829B581fe37029e699c
                 )
             )
         );
@@ -63,7 +64,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
     }
 
     function testSwapUniv2SingleLP() public {
-        cheatCodes.rollFork(forkId, 16000200);
+        cheatCodes.rollFork(forkId, 16749139);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
@@ -99,18 +100,18 @@ contract ConveyorSwapAggregatorTest is DSTest {
     }
 
     function testSwapExactEthForTokens() public {
-        cheatCodes.rollFork(forkId, 16000200);
+        cheatCodes.rollFork(forkId, 16749139);
 
         cheatCodes.deal(address(this), type(uint128).max);
         uint256 amountIn = 1900000000000000000000;
         address tokenOut = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
-        uint256 amountOutMin = 1;
+        uint256 amountOutMin = 54776144172760093;
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
 
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](1);
 
-        calls[0] = newUniV2Call(lp, 1, 0, address(this));
+        calls[0] = newUniV2Call(lp, amountOutMin, 0, address(this));
 
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
@@ -122,15 +123,17 @@ contract ConveyorSwapAggregatorTest is DSTest {
         
     }
 
+
     function testSwapExactTokenForETH() public {
-        cheatCodes.rollFork(forkId, 16000200);
+        cheatCodes.rollFork(forkId, 16749139);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0x34Be5b8C30eE4fDe069DC878989686aBE9884470;
         uint256 amountIn = 1900000000000000000000;
         uint256 amountOutMin = 54776144172760093;
+  
         address lp = 0x9572e4C0c7834F39b5B8dFF95F211d79F92d7F23;
-
+        uint256 balanceBefore = address(this).balance;
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -149,20 +152,23 @@ contract ConveyorSwapAggregatorTest is DSTest {
             );
 
         conveyorSwapAggregator.swapExactTokenForEth(tokenIn, amountIn, amountOutMin, multicall);
+        console.log("balance before", balanceBefore);
+        console.log("balance after", address(this).balance);
            
     }
+    receive() external payable {}
 
     function testSwapUniv2MultiLP() public {
-        cheatCodes.rollFork(forkId, 16000233);
+        cheatCodes.rollFork(forkId, 16749139);
 
         cheatCodes.deal(address(this), type(uint128).max);
         address tokenIn = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         uint256 amountIn = 825000000;
         address tokenOut = 0x2e85ae1C47602f7927bCabc2Ff99C40aA222aE15;
-        uint256 amountOutMin = 4948702184313056519683340;
+        uint256 amountOutMin = 1;
         address firstLP = 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0;
         address secondLP = 0xdC1D67Bc953Bf67F007243c7DED42d67410a6De5;
-
+        
         swapHelper.swapEthForTokenWithUniV2(1 ether, tokenIn);
         IERC20(tokenIn).approve(
             address(conveyorSwapAggregator),
@@ -172,10 +178,11 @@ contract ConveyorSwapAggregatorTest is DSTest {
         ConveyorSwapAggregator.Call[]
             memory calls = new ConveyorSwapAggregator.Call[](2);
 
-        calls[0] = newUniV2Call(firstLP, 0, 680641423375285542, secondLP);
+        calls[0] = newUniV2Call(firstLP, 0, 6806414233752855, secondLP);
+
         calls[1] = newUniV2Call(
             secondLP,
-            4948702184313056519683340,
+            1,
             0,
             address(this)
         );
@@ -193,6 +200,8 @@ contract ConveyorSwapAggregatorTest is DSTest {
             amountOutMin,
             multicall
         );
+     
+
     }
 
     function testSwapUniv3SingleLP() public {
@@ -235,7 +244,7 @@ contract ConveyorSwapAggregatorTest is DSTest {
         console.log(IERC20(tokenIn).balanceOf(address(this)));
 
         forkId = cheatCodes.activeFork();
-        cheatCodes.rollFork(forkId, 16000218);
+        cheatCodes.rollFork(forkId, 16749139);
         console.log(IERC20(tokenIn).balanceOf(address(this)));
         ConveyorSwapAggregator.SwapAggregatorMulticall
             memory multicall = ConveyorSwapAggregator.SwapAggregatorMulticall(
