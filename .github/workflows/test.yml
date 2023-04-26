@@ -32,7 +32,7 @@ jobs:
           version: nightly
   
       - name: Run tests
-        run: forge test -f "https://rpc.ankr.com/eth" --ffi
+        run: forge test -f${{ secrets.MAINNET_ENDPOINT }} --ffi
 
       - name: Run snapshot
-        run: forge test -f "https://rpc.ankr.com/eth" --ffi
+        run: forge test -f${{ secrets.MAINNET_ENDPOINT }} --ffi
